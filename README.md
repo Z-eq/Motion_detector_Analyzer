@@ -9,9 +9,9 @@ This project uses OpenCV and YOLO (You Only Look Once) to detect humans and anim
 - Logging of detection results and processed videos
 - Good for analyzing survelliance camera videos which has no motiondetection.
 
-## Installation
+## Installation Linux/Win
 
-1. **Open Command Prompt**: Press `Win + R`, type `cmd`, and press Enter.
+1. **Open Command Prompt**:
 2. **Navigate to Project Directory**: 
 
     cd /your_path/
