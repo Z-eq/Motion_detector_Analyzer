@@ -204,9 +204,9 @@ if __name__ == "__main__":
     net, classes, output_layers = load_yolo(weights_path, config_path, names_path)
     
     # Directory paths
-    video_directory = "/home/data/Videos/sub-script-human-detetion-video/videos"  # Path to your videos directory
-    output_directory = "/home/data/Videos/sub-script-human-detetion-video/detects"  # Directory to save detected frames
-    log_file_path = "/home/data/Videos/sub-script-human-detetion-video/PROCESSED_Videos.log"  # Log file to record processed videos
+    video_directory = "/folder_of_you_videos"  # Path to your videos directory
+    output_directory = "/your_output_folder"  # Directory to save detected frames
+    log_file_path = "/your_output_folder_/PROCESSED_Videos.log"  # Log file to record processed videos
     
     # Create output directory if not exists
     os.makedirs(output_directory, exist_ok=True)
