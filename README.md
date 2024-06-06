@@ -29,9 +29,9 @@ This project uses OpenCV and YOLO (You Only Look Once) to detect humans and anim
     
     python motion_detection.py
    
-Ensure YOLO model files (weights, config, class names) are in the project directory.. If not you can download them manually using the links below.:
-"yolov3.weights": "https://pjreddie.com/media/files/yolov3.weights",
-"yolov3.cfg": "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3.cfg",
+Ensure YOLO model files (weights, config, class names) are in the project directory.. If not you can download them manually using the links below.
+"yolov3.weights":"https://pjreddie.com/media/files/yolov3.weights"
+"yolov3.cfg": "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3.cfg"
 "coco.names": "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names"
 
 Or use the script download_yolo.py that is located in the root directory, it will automaticly download the weights,cfg adn coco names.
