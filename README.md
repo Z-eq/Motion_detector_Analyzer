@@ -7,7 +7,7 @@ This project uses OpenCV and YOLO (You Only Look Once) to detect humans and anim
 - Motion detection using background subtraction
 - Configurable frame skipping for performance tuning 
 - Logging of detection results and processed videos
-- Good for analyzing survelliance cameras which has no motiondetection.
+- Good for analyzing survelliance camera videos which has no motiondetection.
 
 ## Installation
 
