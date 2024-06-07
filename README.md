@@ -35,3 +35,5 @@ Ensure YOLO model files (weights, config, class names) are in the project direct
 "coco.names": "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names"
 
 Or use the script download_yolo.py that is located in the root directory, it will automaticly download the weights,cfg adn coco names.
+
+FOr questions pm me or send email : zeq.alidemaj @ gmail.com
