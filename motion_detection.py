@@ -1,12 +1,11 @@
 import cv2
 import os
 import logging
-from typing import List, Tuple
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def load_yolo(weights_path: str, config_path: str, names_path: str) -> Tuple[cv2.dnn_Net, List[str], List[str]]:
-   
+def load_yolo(weights_path, config_path, names_path):
     try:
         net = cv2.dnn.readNet(weights_path, config_path)
         with open(names_path, "r") as f:
@@ -18,44 +17,14 @@ def load_yolo(weights_path: str, config_path: str, names_path: str) -> Tuple[cv2
         logging.error(f"Failed to load YOLO model: {e}")
         raise
 
-def detect_objects(frame: cv2.Mat, net: cv2.dnn_Net, output_layers: List[str]) -> Tuple[List[cv2.Mat], int, int]:
-    """
-    Detect objects in a frame using YOLO.
-    
-    Parameters:
-    - frame: The input frame for object detection.
-    - net: Loaded YOLO network.
-    - output_layers: Names of the output layers.
-    
-    Returns:
-    - outs: YOLO detection results.
-    - width: Frame width.
-    - height: Frame height.
-    """
+def detect_objects(frame, net, output_layers):
     height, width = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
     net.setInput(blob)
     outs = net.forward(output_layers)
     return outs, width, height
 
-def get_bounding_boxes(outs: List[cv2.Mat], width: int, height: int, classes: List[str], 
-                       confidence_threshold: float = 0.5, nms_threshold: float = 0.4) -> Tuple[List[int], List[float], List[List[int]]]:
-    """
-    Extract bounding boxes from YOLO detection results.
-    
-    Parameters:
-    - outs: Detection results.
-    - width: Frame width.
-    - height: Frame height.
-    - classes: List of class names.
-    - confidence_threshold: Minimum confidence for a detection to be considered valid.
-    - nms_threshold: Threshold for non-max suppression to remove redundant boxes.
-    
-    Returns:
-    - final_class_ids: List of class IDs for final detections.
-    - final_confidences: List of confidence scores for final detections.
-    - final_boxes: List of bounding boxes for final detections.
-    """
+def get_bounding_boxes(outs, width, height, classes, confidence_threshold=0.5, nms_threshold=0.4):
     class_ids, confidences, boxes = [], [], []
     for out in outs:
         for detection in out:
@@ -70,7 +39,6 @@ def get_bounding_boxes(outs: List[cv2.Mat], width: int, height: int, classes: Li
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
 
-    # Apply non-max suppression to remove redundant overlapping boxes
     indices = cv2.dnn.NMSBoxes(boxes, confidences, confidence_threshold, nms_threshold)
     final_boxes, final_class_ids, final_confidences = [], [], []
     for i in indices:
@@ -80,18 +48,7 @@ def get_bounding_boxes(outs: List[cv2.Mat], width: int, height: int, classes: Li
     
     return final_class_ids, final_confidences, final_boxes
 
-def detect_motion(frame: cv2.Mat, background_subtractor: cv2.BackgroundSubtractor) -> bool:
-    """
-    Detect motion in a frame using background subtraction.
-    
-    Parameters:
-    - frame: Video frame.
-    - background_subtractor: Background subtractor object.
-    
-    Returns:
-    - bool: True if motion is detected, False otherwise.
-    """
-    # Apply Gaussian blur to reduce noise
+def detect_motion(frame, background_subtractor):
     blurred_frame = cv2.GaussianBlur(frame, (5, 5), 0)
     fgmask = background_subtractor.apply(blurred_frame)
     _, fgmask = cv2.threshold(fgmask, 25, 255, cv2.THRESH_BINARY)
@@ -100,30 +57,13 @@ def detect_motion(frame: cv2.Mat, background_subtractor: cv2.BackgroundSubtracto
     contours, _ = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     for contour in contours:
-        if cv2.contourArea(contour) > 1000:  # Adjusted threshold for significant motion
+        if cv2.contourArea(contour) > 1000:
             return True
     return False
 
-def detect_humans_and_animals(video_path: str, net: cv2.dnn_Net, output_layers: List[str], classes: List[str], 
-                              background_subtractor: cv2.BackgroundSubtractor, frame_skip: int = 15, 
-                              confidence_threshold: float = 0.5, nms_threshold: float = 0.4) -> Tuple[List[Tuple[int, List[List[int]]]], List[Tuple[int, cv2.Mat]]]:
-    """
-    Detect humans and animals in a video.
-    
-    Parameters:
-    - video_path: Path to the video file.
-    - net: Loaded YOLO network.
-    - output_layers: Names of output layers.
-    - classes: List of class names.
-    - background_subtractor: Background subtractor object.
-    - frame_skip: Number of frames to skip between detections.
-    - confidence_threshold: Minimum confidence for detections.
-    - nms_threshold: Threshold for non-max suppression.
-    
-    Returns:
-    - detections: List of frames with detected objects.
-    - output_frames: List of frames with annotations.
-    """
+def detect_humans_and_animals(video_path, weights_path, config_path, names_path, frame_skip=15, confidence_threshold=0.5, nms_threshold=0.4):
+    net, classes, output_layers = load_yolo(weights_path, config_path, names_path)
+    background_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=25, detectShadows=True)
     cap = cv2.VideoCapture(video_path)
     frame_number = 0
     detections = []
@@ -152,47 +92,43 @@ def detect_humans_and_animals(video_path: str, net: cv2.dnn_Net, output_layers: 
                     cv2.putText(frame, f"{label} {confidence:.2f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
                 output_frames.append((frame_number, frame))
-                # Log detection to console
-                logging.info(f"Detected {len(boxes)} objects in frame {frame_number}")
+                print(f"Detected {len(boxes)} objects in frame {frame_number}")
 
     cap.release()
     return detections, output_frames
 
-def process_videos(video_directory: str, output_directory: str, net: cv2.dnn_Net, output_layers: List[str], 
-                   classes: List[str], log_file_path: str, frame_skip: int = 15, 
-                   confidence_threshold: float = 0.5, nms_threshold: float = 0.4) -> None:
-    """
-    Process all videos in a directory for human and animal detection and log processed videos.
+def process_single_video(args):
+    video_file, video_directory, output_directory, weights_path, config_path, names_path, frame_skip, confidence_threshold, nms_threshold = args
+    video_path = os.path.join(video_directory, video_file)
+    detections, output_frames = detect_humans_and_animals(video_path, weights_path, config_path, names_path, frame_skip, confidence_threshold, nms_threshold)
     
-    Parameters:
-    - video_directory: Directory containing video files.
-    - output_directory: Directory to save frames with detections.
-    - net: Loaded YOLO network.
-    - output_layers: Names of output layers.
-    - classes: List of class names.
-    - log_file_path: Path to the log file for recording processed videos.
-    - frame_skip: Number of frames to skip between detections.
-    - confidence_threshold: Minimum confidence for detections.
-    - nms_threshold: Threshold for non-max suppression.
-    """
-    background_subtractor = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=25, detectShadows=True)
+    if detections:
+        output_path = os.path.join(output_directory, os.path.splitext(video_file)[0])
+        os.makedirs(output_path, exist_ok=True)
+        for frame_number, frame in output_frames:
+            output_frame_path = os.path.join(output_path, f"frame_{frame_number}.jpg")
+            cv2.imwrite(output_frame_path, frame)
+        print(f"Detections in {video_file}: {detections}")
+    
+    return video_file
+
+def process_videos(video_directory, output_directory, weights_path, config_path, names_path, log_file_path, frame_skip=15, confidence_threshold=0.5, nms_threshold=0.4, batch_size=5):
     video_files = [f for f in os.listdir(video_directory) if f.endswith(".mp4")]
+    
+    def process_batch(batch):
+        args = [(video_file, video_directory, output_directory, weights_path, config_path, names_path, frame_skip, confidence_threshold, nms_threshold) for video_file in batch]
+        with ProcessPoolExecutor() as executor:
+            futures = [executor.submit(process_single_video, arg) for arg in args]
+            for future in as_completed(futures):
+                video_file = future.result()
+                with open(log_file_path, 'a') as log_file:
+                    log_file.write(f"{video_file}\n")
+                print(f"Processed video: {video_file}")
 
-    with open(log_file_path, 'w') as log_file:
-        for video_file in video_files:
-            video_path = os.path.join(video_directory, video_file)
-            detections, output_frames = detect_humans_and_animals(video_path, net, output_layers, classes, background_subtractor, frame_skip, confidence_threshold, nms_threshold)
-            
-            if detections:
-                output_path = os.path.join(output_directory, os.path.splitext(video_file)[0])
-                os.makedirs(output_path, exist_ok=True)
-                for frame_number, frame in output_frames:
-                    output_frame_path = os.path.join(output_path, f"frame_{frame_number}.jpg")
-                    cv2.imwrite(output_frame_path, frame)
-                logging.info(f"Detections in {video_file}: {detections}")
-
-            log_file.write(f"{video_file}\n")
-            logging.info(f"Processed video: {video_file}")
+    # Process videos in batches
+    for i in range(0, len(video_files), batch_size):
+        batch = video_files[i:i + batch_size]
+        process_batch(batch)
 
 if __name__ == "__main__":
     # Paths to the YOLO files
@@ -200,21 +136,23 @@ if __name__ == "__main__":
     config_path = "yolov3.cfg"
     names_path = "coco.names"
 
-    # Load YOLO
-    net, classes, output_layers = load_yolo(weights_path, config_path, names_path)
-    
     # Directory paths
-    video_directory = "/folder_of_you_videos"  # Path to your videos directory
-    output_directory = "/your_output_folder"  # Directory to save detected frames
-    log_file_path = "/your_output_folder_/PROCESSED_Videos.log"  # Log file to record processed videos
+    video_directory = "/home/data/Videos/sub-script-human-detetion-video/videos"  # Path to your videos directory
+    output_directory = "/home/data/Videos/sub-script-human-detetion-video/detects"  # Directory to save detected frames
+    log_file_path = "/home/data/Videos/sub-script-human-detetion-video/PROCESSED_Videos.log"  # Log file to record processed videos
     
     # Create output directory if not exists
     os.makedirs(output_directory, exist_ok=True)
     
     # Parameters
-    frame_skip = 25 # Process every 25th frame ( The lower frames the more accurate but slower)
-    confidence_threshold = 0.6  # Minimum confidence for detections (adjust this for sensitivity)
-    nms_threshold = 0.4  # Non-max suppression threshold (adjust this to remove noise)
+    frame_skip = 5 # Process every 25th frame ( The lower frames the more accurate but slower)
     
+    confidence_threshold = 0.6  # Minimum confidence for detections , Adjust this based on how confident you want the model to be before accepting a detection.
+    
+    nms_threshold = 0.4  # Non-max suppression threshold , Adjust this based on how much overlap you allow between bounding boxes before they are considered the same object.
+    
+    batch_size = 5  # Number of videos to process in each batch, 
+    
+  
     # Process videos and log results
-    process_videos(video_directory, output_directory, net, output_layers, classes, log_file_path, frame_skip, confidence_threshold, nms_threshold)
+    process_videos(video_directory, output_directory, weights_path, config_path, names_path, log_file_path, frame_skip, confidence_threshold, nms_threshold, batch_size)
