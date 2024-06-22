@@ -69,7 +69,7 @@ Edit the script to set your paths and parameters:
     process_videos(video_directory, output_directory, weights_path, config_path, names_path, log_file_path, frame_skip, confidence_threshold, nms_threshold, batch_size)` 
 ```
 
--  In picture you see some short videos that has beenprocesed without any intresting information and then some wiht detecting frames!
+-  In picture you see some short videos that has been procesed without any interesting information and then some wiht detecting frames!
 ![Live running](https://github.com/Z-eq/Motion_detector_Analyzer/blob/main/motion-1.png)
 
 
