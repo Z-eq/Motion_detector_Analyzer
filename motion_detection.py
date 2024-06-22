@@ -8,6 +8,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def load_yolo(weights_path, config_path, names_path):
     try:
         net = cv2.dnn.readNet(weights_path, config_path)
+        #IMPROVED: Use GPU if available
+        if cv2.cuda.getCudaEnabledDeviceCount() > 0:
+            net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+            net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
         with open(names_path, "r") as f:
             classes = [line.strip() for line in f.readlines()]
         layer_names = net.getLayerNames()
@@ -137,22 +141,21 @@ if __name__ == "__main__":
     names_path = "coco.names"
 
     # Directory paths
-    video_directory = "/Enter_your_path"  # Path to your videos directory
-    output_directory = "/Your_outpot_folder"  # Directory to save detected frames
-    log_file_path = "/Your_output_fodler/PROCESSED_Videos.log"  # Log file to record processed videos
+    video_directory = "/YOUR_Folder_TO_videos"  # Path to your videos directory
+    output_directory = "/YOUR_detects_OUTOUT"  # Directory to save detected frames
+    log_file_path = "/YOUR_LOG_FOLDER/PROCESSED_Videos.log"  # Log file to record processed videos
     
     # Create output directory if not exists
     os.makedirs(output_directory, exist_ok=True)
     
     # Parameters
-    frame_skip = 5 # Process every 25th frame ( The lower frames the more accurate but slower)
+    frame_skip = 25 # Process every 5th frame (The lower frames the more accurate but slower)
     
-    confidence_threshold = 0.6  # Minimum confidence for detections , Adjust this based on how confident you want the model to be before accepting a detection.
+    confidence_threshold = 0.6  # Minimum confidence for detections, Adjust this based on how confident you want the model to be before accepting a detection.
     
-    nms_threshold = 0.4  # Non-max suppression threshold , Adjust this based on how much overlap you allow between bounding boxes before they are considered the same object.
+    nms_threshold = 0.4  # Non-max suppression threshold, Adjust this based on how much overlap you allow between bounding boxes before they are considered the same object.
     
     batch_size = 5  # Number of videos to process in each batch, 
     
-  
     # Process videos and log results
     process_videos(video_directory, output_directory, weights_path, config_path, names_path, log_file_path, frame_skip, confidence_threshold, nms_threshold, batch_size)
